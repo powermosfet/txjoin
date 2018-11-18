@@ -1,11 +1,15 @@
 module Main where
 
+import Options.Applicative (execParser)
+
 import Lib
+import CliOpts (optionsWithInfo)
 
 main :: IO ()
 main = do
-    journal <- parseJournal
-    case journal of
+    opts <- execParser optionsWithInfo
+    transactions <- parseJournal
+    case transactions of
         Left err -> putStrLn err
 
-        Right theJournal -> putStrLn $ showTransactions $ txjoin theJournal
+        Right theTransactions -> putStrLn $ showTransactions $ txjoin opts theTransactions

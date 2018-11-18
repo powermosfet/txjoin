@@ -27,6 +27,7 @@ library:
   dependencies:
     - hledger-lib
     - text
+    - optparse-applicative
 
 executables:
   txjoin:
@@ -38,6 +39,7 @@ executables:
       - -with-rtsopts=-N
     dependencies:
       - txjoin
+      - optparse-applicative
 
 tests:
   txjoin-test:
@@ -49,3 +51,4 @@ tests:
       - -with-rtsopts=-N
     dependencies:
       - txjoin
+      - hspec

@@ -4,30 +4,32 @@ module Lib
     , showTransactions
     ) where
 
+import CliOpts (CliOptions, description)
 import Data.List (intercalate, partition, find)
 import GHC.Exts (sortWith)
 import Hledger.Data.Transaction (showTransaction)
-import Hledger.Data.Types (Transaction, tdate, tpostings, tdescription, Posting, pamount, Journal, jtxns, MixedAmount)
+import Hledger.Data.Types (Transaction, tdate, tpostings, Posting, pamount, jtxns, MixedAmount)
 import Hledger.Query (Query(..), matchesTransaction, matchesPosting)
 import Hledger.Read (readJournal)
 import Hledger.Read.Common (definputopts)
 import qualified Data.Text as Text
 
-parseJournal :: IO (Either String Journal)
-parseJournal =
-    getContents >>= readJournal definputopts Nothing . Text.pack
+parseJournal :: IO (Either String [Transaction])
+parseJournal = do
+    stdin <- getContents
+    eJn <- readJournal definputopts Nothing $ Text.pack stdin
+    return (jtxns <$> eJn)
 
 qUnknown :: Query
 qUnknown = Acct "unknown"
 
-txjoin :: Journal -> [Transaction]
-txjoin input =
+txjoin :: CliOptions -> [Transaction] -> [Transaction]
+txjoin options txs =
     let
-        txs = jtxns input
-        (unknown, known) = partition (matchesTransaction qUnknown) txs
-        matched = findMatches unknown
+        (checkThese, passThroughThese) = partition (\t -> matchesTransaction qUnknown t && matchesTransaction (Desc (description options)) t) txs
+        matched = findMatches checkThese
     in
-        sortWith tdate (known ++ matched)
+        sortWith tdate (passThroughThese ++ matched)
 
 findMatches :: [Transaction] -> [Transaction]
 findMatches [] = []
@@ -42,9 +44,8 @@ matchTx :: Transaction -> [Transaction] -> (Transaction, [Transaction])
 matchTx tx txs =
     let
         isSameDay tx' = tdate tx' == tdate tx
-        isSameDescr tx' = tdescription tx' == tdescription tx
         isRightAmount tx' = (unknownAmount tx' == knownAmount tx)
-        predicate tx' = all ($ tx') [isSameDay, isSameDescr, isRightAmount]
+        predicate tx' = all ($ tx') [isSameDay, isRightAmount]
         result = find predicate txs
     in
         case result of
